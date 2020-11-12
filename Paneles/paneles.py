@@ -5,6 +5,8 @@ parentDir  = os.path.dirname(currentDir)
 sys.path.append(parentDir)
 
 from Calculos.algebra import sumarVectores, multiplicarVectorEscalar
+
+import numpy as np
 import pandas as pd
 import wx
 import wx.xrc
@@ -16,6 +18,8 @@ from Datos.superficies import Superficie
 from Ventanas.ventanas import VenRecintoNuevo
 from Utilidades.utiles import ordenarLista
 
+from sympy.parsing.sympy_parser import parse_expr
+
 from matplotlib.artist import Artist
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
@@ -23,7 +27,7 @@ from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToo
 from matplotlib.figure import Figure
 
 size_boton = (24,24)
-ancho_linea = 0.5
+ancho_linea = 1
 
 class PanelRecinto ( wx.Panel ):
     def __init__( self, parent, id = wx.ID_ANY, pos = wx.DefaultPosition, size = wx.Size( 292,631 ), style = wx.TAB_TRAVERSAL, name = wx.EmptyString ):
@@ -288,17 +292,17 @@ class PanelRecinto ( wx.Panel ):
                 superficie.material_info[key] = valor
             self.escribirValue(superficie)
    # -------------------------------------- Herramientas -------------------------------------- #
-    def comprobar_vertice(self,event,cadena):
+    def comprobar_vertice(self,event,cadena): # Ver si es necesario "event"
         prueba = cadena.split(',')
-        status = True
         if len(prueba) != 3:
             return None
         final = []
         try:
             for i in range(len(prueba)):
-                final.append(float(prueba[i]))
+                valor = float(parse_expr(prueba[i]))
+                final.append(valor)
             return final
-        except ValueError:
+        except (ValueError, TypeError):
             return None
     def comprobar_rango(self,cadena,a,b):
         '''Comprueba que una cadena sea un valor que se encuentre entre dos valores [a,b]. 
@@ -410,11 +414,14 @@ class PanelGraficaRecinto ( wx.Panel ):
             if superficie.normal != None:
                 for i in range(4):
                     punto_incial = superficie.verts_list[i]
-                    punto_normal = sumarVectores(superficie.normal,punto_incial)
-                    linea = self.ax.plot([punto_incial[0],punto_normal[0]],
-                                         [punto_incial[1],punto_normal[1]],
-                                         [punto_incial[2],punto_normal[2]],
-                                         linewidth=ancho_linea,color='red')
+                    punto_normal = superficie.normal # sumarVectores(superficie.normal,punto_incial)
+                    # linea = self.ax.plot([punto_incial[0],punto_normal[0]],
+                    #                      [punto_incial[1],punto_normal[1]],
+                    #                      [punto_incial[2],punto_normal[2]],
+                    #                      linewidth=ancho_linea,color='red')
+                    linea = self.ax.quiver3D(punto_incial[0], punto_incial[1], punto_incial[2],
+                                             punto_normal[0], punto_normal[1], punto_normal[2],
+                                             linewidth=ancho_linea, arrow_length_ratio=0.4, color='red')
                     superficie.normal_lineas.append(linea)
                     superficie.padre.lineasChildren.append(linea)
             self.canvas.draw()
@@ -472,15 +479,20 @@ class PanelGraficaRecinto ( wx.Panel ):
         self.canvas.draw()
         self.cambiar_normales(superficie)
     def cambiar_normales(self,superficie):
+        # Se remueven las flechas del ax
+        [self.ax.collections.remove(superficie.normal_lineas[i]) for i in range(len(superficie.normal_lineas))]
+        # Se calcula el vector normal
         superficie.setNormal()
+        # Se grafica y guardan en la superficie
         if superficie.normal != None:
+            superficie.normal_lineas.clear()
             for i in range(4):
                 punto_incial = superficie.verts_list[i]
-                punto_normal = sumarVectores(superficie.normal,punto_incial)
-                linea = superficie.normal_lineas[i]
-                linea[0].set_data_3d([punto_incial[0],punto_normal[0]],
-                                     [punto_incial[1],punto_normal[1]],
-                                     [punto_incial[2],punto_normal[2]])
+                punto_normal = superficie.normal
+                linea = self.ax.quiver3D(punto_incial[0], punto_incial[1], punto_incial[2],
+                                         punto_normal[0], punto_normal[1], punto_normal[2],
+                                         linewidth=ancho_linea, arrow_length_ratio=0.4, color='red')
+                superficie.normal_lineas.append(linea)
         self.canvas.draw()
     def eliminar_lineas(self,superficie,todas=False):
         if todas:
