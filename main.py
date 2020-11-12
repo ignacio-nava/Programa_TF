@@ -56,7 +56,6 @@ class MainFrame ( wx.Frame ):
 
         self.SetSizer( sizer_main )
         self.Layout()
-
     #   ======================================== MENUBAR ========================================= #    
         self.menubar = wx.MenuBar( 0 )
         self.menubar.OSXGetAppleMenu()
@@ -85,7 +84,6 @@ class MainFrame ( wx.Frame ):
 
         self.SetMenuBar( self.menubar )
         self.Centre( wx.BOTH )
-
     #   Connect Events
         self.Bind( wx.EVT_MENU, self.onClickArchivoAbrir, id = self.archivo_Abrir.GetId() )
         self.Bind( wx.EVT_MENU, self.onClickArchivoGuardar, id = self.archivo_Guardar.GetId() )
