@@ -10,7 +10,7 @@ class Superficie:
     def __init__(self,padre,indice,grafica=True):
         self.padre = padre
         self.indice = indice
-        self.lineasChildren = []
+        #self.lineasChildren = []
         self.lineas = []
         self.color = 'black'
         self.grafica = grafica

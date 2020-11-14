@@ -68,10 +68,10 @@ class PanelRecinto ( wx.Panel ):
         self.pm_superficie = pg.PropertyGridManager(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, pg.PGMAN_DEFAULT_STYLE|
                                                                                                          pg.PG_BOLD_MODIFIED|
                                                                                                          pg.PG_SPLITTER_AUTO_CENTER|
-                                                                                                         pg.PG_STATIC_SPLITTER )                                                                                               
+                                                                                                         pg.PG_STATIC_SPLITTER )                                                                                                                                                                                             
         self.pm_superficie.SetExtraStyle( wx.propgrid.PG_EX_MODE_BUTTONS )
         sizer_D_down.Add( self.pm_superficie, 1, wx.ALL|wx.EXPAND, 5 )
-
+    
         page = self.pm_superficie.AddPage("Superficie")
         page.Append(pg.PropertyCategory('Vertices (x,y,z)','vertices'))
         page.Append(pg.StringProperty('Vertice 1','vertice_1'))
@@ -118,9 +118,9 @@ class PanelRecinto ( wx.Panel ):
     def onSelecItemCambio( self, event):
         self.superficie_activa = event.GetItem()
         superficie = self.treeCtrl_recinto.GetItemData(event.GetItem())
-        if superficie.padre == None:
+        if self.superficie_activa == self.ROOT:
             self.soloLectura(True)
-        else: 
+        else:
             self.soloLectura(False)
         self.escribirValue(superficie)
         try:
@@ -137,7 +137,7 @@ class PanelRecinto ( wx.Panel ):
         item = self.treeCtrl_recinto.GetSelection()
         itemData = self.treeCtrl_recinto.GetItemData(item) 
         i = self.treeCtrl_recinto.GetChildrenCount(item)
-        self.treeCtrl_recinto.AppendItem(item,'Superficie %s'%(i+1),data=Superficie(itemData,i))
+        self.treeCtrl_recinto.AppendItem(item,'Superficie %s'%(i+1),data=Superficie(itemData.indice,i))
         self.treeCtrl_recinto.Expand(item)
     def crearNuevoRecinto(self,x,y,z):
         '''Reincia el recinto
@@ -256,7 +256,7 @@ class PanelRecinto ( wx.Panel ):
         PGP = event.GetPropertyName()
         if PGP[:-1] == 'vertice_':
             cadena = event.GetPropertyValue()
-            respuesta = self.comprobar_vertice(event,cadena)
+            respuesta = self.comprobar_vertice(cadena)
             if respuesta != None:
                 superficie.setVertices(PGP,respuesta)
                 if len(superficie.lineas) == 0:
@@ -292,7 +292,7 @@ class PanelRecinto ( wx.Panel ):
                 superficie.material_info[key] = valor
             self.escribirValue(superficie)
    # -------------------------------------- Herramientas -------------------------------------- #
-    def comprobar_vertice(self,event,cadena): # Ver si es necesario "event"
+    def comprobar_vertice(self, cadena): 
         prueba = cadena.split(',')
         if len(prueba) != 3:
             return None
@@ -321,6 +321,22 @@ class PanelRecinto ( wx.Panel ):
             return None
     def continuar_focus(self,PGP):
         pass
+    def obtener_superficies(self):
+        # if self.treeCtrl_recinto.GetChildrenCount(self.ROOT) > 0:
+            # items = []
+            # item, cookie = self.treeCtrl_recinto.GetFirstChild(self.ROOT)
+            # while item.IsOk():
+            #     items.append(item)
+            #     item, cookie = self.treeCtrl_recinto.GetNextChild(self.ROOT, cookie)
+        items = []
+        item = self.treeCtrl_recinto.GetFirstVisibleItem()
+        while item.IsOk():
+            if item == self.ROOT:
+                item = self.treeCtrl_recinto.GetNextVisible(item)
+            else:
+                items.append(self.treeCtrl_recinto.GetItemData(item))
+                item = self.treeCtrl_recinto.GetNextVisible(item)              
+        return items
    # ------------------------------------ Acondicionadoras ------------------------------------ #
 
 class Panel_FuenteReceptor ( wx.Panel ):
@@ -408,7 +424,7 @@ class PanelGraficaRecinto ( wx.Panel ):
                                      [vertices[i][2],vertices[i+1][2]],
                                      linewidth=ancho_linea,color=color)
                 superficie.lineas.append(linea)
-                superficie.padre.lineasChildren.append(linea)     
+                #superficie.padre.lineasChildren.append(linea)     
             # LINEAS NORMAL
             superficie.setNormal() # se obtiene el vector normal de acuerdo a los 4 vertices
             if superficie.normal != None:
@@ -423,7 +439,7 @@ class PanelGraficaRecinto ( wx.Panel ):
                                              punto_normal[0], punto_normal[1], punto_normal[2],
                                              linewidth=ancho_linea, arrow_length_ratio=0.4, color='red')
                     superficie.normal_lineas.append(linea)
-                    superficie.padre.lineasChildren.append(linea)
+                    #superficie.padre.lineasChildren.append(linea)
             self.canvas.draw()
         else:
             return None

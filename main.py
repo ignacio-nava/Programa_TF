@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime
 
 import wx
 import wx.xrc
 import wx.aui
+
+import json 
 
 from Paneles.paneles import *
 
@@ -118,9 +121,41 @@ class MainFrame ( wx.Frame ):
    # --------------------------------------- Materiales --------------------------------------- #
    # ---------------------------------------- MenuBar ----------------------------------------- #
     def onClickArchivoAbrir(self,event):
-        event.Skip()
+        with wx.FileDialog(self, "Abrir Superficies", wildcard="TXT files (*.txt)|*.txt",
+                       style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+        path = fileDialog.GetPath()
+        archivo = open(path, 'r')
+        for linea in archivo.readlines():
+            data = json.loads(linea[:-1])
+            data = linea[:-1]
+            print(data) # Acá volver a crear las superficies
     def onClickArchivoGuardar(self,event):
-        event.Skip()
+        with wx.FileDialog(self, "Guardar Superficies", wildcard="TXT files (*.txt)|*.txt",
+                       style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
+         if fileDialog.ShowModal() == wx.ID_CANCEL:
+            return     
+        path = fileDialog.GetPath()
+        superficies = self.paneles_datos[0].obtener_superficies()
+        if len(superficies) > 0:
+            # with open(path, 'w', encoding='utf-8') as outfile:
+            #     for superficie in superficies:
+            #         data = json.dumps(superficie.__dict__)
+            #         outfile.write(data + "\n")
+            
+            for i, superficie in enumerate(superficies):
+                if i == 0:
+                    archivo = open(path, 'w', encoding='utf-8')
+                    data = json.dumps(superficie.__dict__)
+                    archivo.write(data + "\n")
+                    archivo.close()
+                else:
+                    archivo = open(path, 'a', encoding='utf-8')
+                    data = json.dumps(superficie.__dict__)
+                    archivo.write(data + "\n")
+                    archivo.close()
+            
     def onClickArchivoGuardarComo(self,event):
         event.Skip()
     def onClickArchivoSalir(self,event):
