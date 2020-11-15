@@ -7,7 +7,9 @@ sys.path.append(parentDir)
 from Calculos.algebra import crearVectorNormal,multiplicarVectorEscalar,getMagnitudVector
 
 class Superficie:
-    def __init__(self,padre,indice,grafica=True):
+    def __init__(self, orden, nombre, padre, indice, grafica=True, **datos):
+        self.orden = orden
+        self.nombre = nombre
         self.padre = padre
         self.indice = indice
         #self.lineasChildren = []
@@ -16,7 +18,6 @@ class Superficie:
         self.grafica = grafica
         self.vertices = []
         self.normal = []
-        self.color = (0,0,0)
         self.vertices = {'vertice_1':'',
                          'vertice_2':'',
                          'vertice_3':'',
@@ -32,9 +33,10 @@ class Superficie:
                               'm_4000':'',
                               'm_nrc':'',}
         self.verts_list = self.getVertices()
-        self.normal = None
         self.normal_lineas = []
         self.area = None
+        for key, value in datos.items():
+            setattr(self, key, value)
     def setVertices(self,key,arg):
         if type(arg) == list:
             for i in range(len(arg)):
@@ -96,4 +98,3 @@ class Superficie:
         n2 = crearVectorNormal(self.verts_list[0],self.verts_list[2],self.verts_list[3],unitario=False)
         area = getMagnitudVector(n1)/2 + getMagnitudVector(n2)/2
         self.area = area
-

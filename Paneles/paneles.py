@@ -5,6 +5,7 @@ parentDir  = os.path.dirname(currentDir)
 sys.path.append(parentDir)
 
 from Calculos.algebra import sumarVectores, multiplicarVectorEscalar
+from Calculos.grafica import obtenerLimites
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ class PanelRecinto ( wx.Panel ):
                                                                                                   wx.TR_HAS_BUTTONS|
                                                                                                   wx.TR_ROW_LINES )
         sizer_UP.Add( self.treeCtrl_recinto, 2, wx.ALL|wx.EXPAND, 5 )
-        root = Superficie(None,None,grafica=False)
+        root = Superficie(-1, 'Recinto', None, None, grafica=False)
         self.ROOT = self.treeCtrl_recinto.AddRoot('Recinto',data=root)
         self.treeCtrl_recinto.SetItemBold(self.ROOT)
 
@@ -107,6 +108,7 @@ class PanelRecinto ( wx.Panel ):
         self.soloLectura(True)
  #  Connect Events
    # ---------------------------------------- TreeCtrl ---------------------------------------- #
+        self.treeCtrl_recinto.Bind( wx.EVT_TREE_END_LABEL_EDIT, self.onEditarLabel )
         self.treeCtrl_recinto.Bind( wx.EVT_TREE_SEL_CHANGED, self.onSelecItemCambio )
    # ------------------------------------ Property Manager ------------------------------------ #
         self.pm_superficie.Bind( pg.EVT_PG_CHANGED, self.onCambioPGM )
@@ -115,6 +117,22 @@ class PanelRecinto ( wx.Panel ):
     def __del__( self ):
         pass
    # ---------------------------------------- TreeCtrl ---------------------------------------- #
+    def cargarSuperficie(self, datos):
+        item = self.treeCtrl_recinto.GetFirstVisibleItem()
+        while (datos['orden'] - self.treeCtrl_recinto.GetItemData(item).orden) > 1 and item.IsOk():
+            item = self.treeCtrl_recinto.GetLastChild(item)
+        self.treeCtrl_recinto.AppendItem(item, datos['nombre'], data=Superficie(**datos))
+        self.treeCtrl_recinto.Expand(item)
+        #-----#
+        graficar = 0
+        new_item = self.treeCtrl_recinto.GetLastChild(item)
+        self.treeCtrl_recinto.SelectItem(new_item)
+        superficie = self.treeCtrl_recinto.GetItemData(new_item)
+        if len(superficie.lineas) == 0:
+            if type(superficie.verts_list[0]) != str:
+                self.padre.graficar(superficie)
+                graficar = 1
+        return graficar
     def onSelecItemCambio( self, event):
         self.superficie_activa = event.GetItem()
         superficie = self.treeCtrl_recinto.GetItemData(event.GetItem())
@@ -132,13 +150,19 @@ class PanelRecinto ( wx.Panel ):
         item = self.treeCtrl_recinto.GetSelection()
         superficie = self.treeCtrl_recinto.GetItemData(item)
         self.padre.eliminar_lineas(superficie)
+        self.restarHijas(item)
         self.treeCtrl_recinto.Delete(item)
     def sumar_superficie(self):
         item = self.treeCtrl_recinto.GetSelection()
         itemData = self.treeCtrl_recinto.GetItemData(item) 
-        i = self.treeCtrl_recinto.GetChildrenCount(item)
-        self.treeCtrl_recinto.AppendItem(item,'Superficie %s'%(i+1),data=Superficie(itemData.indice,i))
+        i = self.treeCtrl_recinto.GetChildrenCount(item, recursively=False)
+        nombre = 'Superficie %s'%(i+1)
+        self.treeCtrl_recinto.AppendItem(item, nombre, data=Superficie(itemData.orden+1 , nombre, itemData.indice, i))
         self.treeCtrl_recinto.Expand(item)
+    def reiniciarRecinto(self):
+        self.treeCtrl_recinto.DeleteChildren(self.ROOT)
+        superficie = self.treeCtrl_recinto.GetItemData(self.ROOT)
+        self.padre.eliminar_lineas(superficie,todas=True)
     def crearNuevoRecinto(self,x,y,z):
         '''Reincia el recinto
         x => tuple (x0,x1)
@@ -147,9 +171,7 @@ class PanelRecinto ( wx.Panel ):
         '''
         self.treeCtrl_recinto.SelectItem(self.ROOT)
         # Eliminar Data
-        self.treeCtrl_recinto.DeleteChildren(self.ROOT)
-        superficie = self.treeCtrl_recinto.GetItemData(self.ROOT)
-        self.padre.eliminar_lineas(superficie,todas=True)
+        self.reiniciarRecinto()
         # Crear Data
         for i in range(6):
             self.sumar_superficie()
@@ -240,6 +262,8 @@ class PanelRecinto ( wx.Panel ):
             s-=1
         self.padre.ajustar_grilla(x[1],y[1],z[1])
         self.treeCtrl_recinto.SelectItem(self.ROOT)
+    def onEditarLabel(self, event):
+        self.treeCtrl_recinto.GetItemData(event.GetItem()).nombre = event.GetLabel()
    # ------------------------------------ Property Manager ------------------------------------ #
     def soloLectura(self,status):
         self.pm_superficie.SetPropertyReadOnly('vertices',status)
@@ -322,21 +346,38 @@ class PanelRecinto ( wx.Panel ):
     def continuar_focus(self,PGP):
         pass
     def obtener_superficies(self):
-        # if self.treeCtrl_recinto.GetChildrenCount(self.ROOT) > 0:
-            # items = []
-            # item, cookie = self.treeCtrl_recinto.GetFirstChild(self.ROOT)
-            # while item.IsOk():
-            #     items.append(item)
-            #     item, cookie = self.treeCtrl_recinto.GetNextChild(self.ROOT, cookie)
         items = []
         item = self.treeCtrl_recinto.GetFirstVisibleItem()
         while item.IsOk():
             if item == self.ROOT:
                 item = self.treeCtrl_recinto.GetNextVisible(item)
             else:
+                print(self.treeCtrl_recinto.GetItemData(item).nombre)
                 items.append(self.treeCtrl_recinto.GetItemData(item))
                 item = self.treeCtrl_recinto.GetNextVisible(item)              
         return items
+    def recolectarVertices(self):
+        vertices = []
+        item = self.treeCtrl_recinto.GetFirstVisibleItem()
+        while item.IsOk():
+            if item == self.ROOT:
+                item = self.treeCtrl_recinto.GetNextVisible(item)
+            else:
+                verts = self.treeCtrl_recinto.GetItemData(item).verts_list
+                if type(verts[0]) != str:
+                    vertices.append(verts)
+                item = self.treeCtrl_recinto.GetNextVisible(item)              
+        return vertices
+    def restarHijas(self, item):
+        next_item = self.treeCtrl_recinto.GetLastChild(item)
+        while next_item.IsOk():
+            if self.treeCtrl_recinto.GetChildrenCount(next_item) > 0:
+                self.restarHijas(next_item)
+            else:
+                superficie = self.treeCtrl_recinto.GetItemData(next_item)
+                self.padre.eliminar_lineas(superficie)
+                self.treeCtrl_recinto.Delete(next_item)
+                next_item = self.treeCtrl_recinto.GetLastChild(item)      
    # ------------------------------------ Acondicionadoras ------------------------------------ #
 
 class Panel_FuenteReceptor ( wx.Panel ):
@@ -412,6 +453,12 @@ class PanelGraficaRecinto ( wx.Panel ):
         self.ax.set_ylim3d(res_y/2, y-(res_y/2))
         self.ax.set_zlim3d(res_z/2, z-(res_z/2))
         self.canvas.draw()
+    def ajustar_limites(self, vertices):
+        xs, ys, zs = obtenerLimites(vertices)
+        self.ax.set_xlim3d(xs[0], xs[1])
+        self.ax.set_ylim3d(ys[0], ys[1])
+        self.ax.set_zlim3d(zs[0], zs[1])
+        self.canvas.draw()
     def crear_lineas(self,superficie):
         vertices = superficie.getVertices()
         color = superficie.color
@@ -424,7 +471,7 @@ class PanelGraficaRecinto ( wx.Panel ):
                                      [vertices[i][2],vertices[i+1][2]],
                                      linewidth=ancho_linea,color=color)
                 superficie.lineas.append(linea)
-                #superficie.padre.lineasChildren.append(linea)     
+                #superficie.padre.lineasChildren.append(linea)     # buscar objeto padre
             # LINEAS NORMAL
             superficie.setNormal() # se obtiene el vector normal de acuerdo a los 4 vertices
             if superficie.normal != None:
@@ -439,7 +486,7 @@ class PanelGraficaRecinto ( wx.Panel ):
                                              punto_normal[0], punto_normal[1], punto_normal[2],
                                              linewidth=ancho_linea, arrow_length_ratio=0.4, color='red')
                     superficie.normal_lineas.append(linea)
-                    #superficie.padre.lineasChildren.append(linea)
+                    #superficie.padre.lineasChildren.append(linea) # buscar objeto padre
             self.canvas.draw()
         else:
             return None
@@ -514,20 +561,21 @@ class PanelGraficaRecinto ( wx.Panel ):
         if todas:
             while len(self.ax.lines) > 0:
                 self.ax.lines[0].remove()
-            superficie.lineasChildren = []
+            #superficie.lineasChildren = []
         else:
-            for linea in superficie.lineasChildren:
-                i = self.ax.lines.index(linea[0])
-                self.ax.lines[i].remove()
+            # for linea in superficie.lineasChildren:
+            #     i = self.ax.lines.index(linea[0])
+            #     self.ax.lines[i].remove()
             lineas = superficie.lineas
             normales = superficie.normal_lineas
             for linea,normal in zip(lineas,normales):
                 i = self.ax.lines.index(linea[0])
                 self.ax.lines[i].remove()
-                j = self.ax.lines.index(normal[0])
-                self.ax.lines[j].remove()
-                superficie.padre.lineasChildren.remove(linea)
-                superficie.padre.lineasChildren.remove(normal)
+                self.ax.collections.remove(normal)
+                # j = self.ax.collections.index(normal[0])
+                # self.ax.lines[j].remove()
+                # superficie.padre.lineasChildren.remove(linea)
+                # superficie.padre.lineasChildren.remove(normal)
         self.canvas.draw()
 
 class PanelMateriales ( wx.Panel ):

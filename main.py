@@ -127,10 +127,16 @@ class MainFrame ( wx.Frame ):
                 return
         path = fileDialog.GetPath()
         archivo = open(path, 'r')
+        self.paneles_datos[0].reiniciarRecinto()
+        graficar = 0
         for linea in archivo.readlines():
             data = json.loads(linea[:-1])
-            data = linea[:-1]
-            print(data) # Acá volver a crear las superficies
+            se_grafico = self.paneles_datos[0].cargarSuperficie(data)
+            graficar += se_grafico
+        self.paneles_datos[0].treeCtrl_recinto.SelectItem(self.paneles_datos[0].ROOT)
+        if graficar > 0:
+            vertices = self.paneles_datos[0].recolectarVertices()
+            self.panel_grafica.ajustar_limites(vertices)
     def onClickArchivoGuardar(self,event):
         with wx.FileDialog(self, "Guardar Superficies", wildcard="TXT files (*.txt)|*.txt",
                        style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
@@ -139,23 +145,31 @@ class MainFrame ( wx.Frame ):
         path = fileDialog.GetPath()
         superficies = self.paneles_datos[0].obtener_superficies()
         if len(superficies) > 0:
-            # with open(path, 'w', encoding='utf-8') as outfile:
-            #     for superficie in superficies:
-            #         data = json.dumps(superficie.__dict__)
-            #         outfile.write(data + "\n")
-            
             for i, superficie in enumerate(superficies):
                 if i == 0:
                     archivo = open(path, 'w', encoding='utf-8')
-                    data = json.dumps(superficie.__dict__)
+                    datos = superficie.__dict__
+                    lineas = datos['lineas']
+                    datos['lineas'] = []
+                    normal_lineas = datos['normal_lineas']
+                    datos['normal_lineas'] = []
+                    data = json.dumps(datos)
                     archivo.write(data + "\n")
                     archivo.close()
+                    superficie.lineas = lineas
+                    superficie.normal_lineas = normal_lineas
                 else:
                     archivo = open(path, 'a', encoding='utf-8')
-                    data = json.dumps(superficie.__dict__)
+                    datos = superficie.__dict__
+                    lineas = datos['lineas']
+                    datos['lineas'] = []
+                    normal_lineas = datos['normal_lineas']
+                    datos['normal_lineas'] = []
+                    data = json.dumps(datos)
                     archivo.write(data + "\n")
-                    archivo.close()
-            
+                    archivo.close()    
+                    superficie.lineas = lineas
+                    superficie.normal_lineas = normal_lineas  
     def onClickArchivoGuardarComo(self,event):
         event.Skip()
     def onClickArchivoSalir(self,event):
