@@ -345,17 +345,16 @@ class PanelRecinto ( wx.Panel ):
             return None
     def continuar_focus(self,PGP):
         pass
-    def obtener_superficies(self):
-        items = []
-        item = self.treeCtrl_recinto.GetFirstVisibleItem()
+    def obtener_superficies(self, madre):
+        datos = []
+        item, _ = self.treeCtrl_recinto.GetFirstChild(madre)
         while item.IsOk():
-            if item == self.ROOT:
-                item = self.treeCtrl_recinto.GetNextVisible(item)
-            else:
-                print(self.treeCtrl_recinto.GetItemData(item).nombre)
-                items.append(self.treeCtrl_recinto.GetItemData(item))
-                item = self.treeCtrl_recinto.GetNextVisible(item)              
-        return items
+            datos.append(self.treeCtrl_recinto.GetItemData(item))
+            if self.treeCtrl_recinto.GetChildrenCount(item) > 0:
+                dato = self.obtener_superficies(item)
+                datos += dato
+            item = self.treeCtrl_recinto.GetNextSibling(item)
+        return datos
     def recolectarVertices(self):
         vertices = []
         item = self.treeCtrl_recinto.GetFirstVisibleItem()
@@ -377,7 +376,15 @@ class PanelRecinto ( wx.Panel ):
                 superficie = self.treeCtrl_recinto.GetItemData(next_item)
                 self.padre.eliminar_lineas(superficie)
                 self.treeCtrl_recinto.Delete(next_item)
-                next_item = self.treeCtrl_recinto.GetLastChild(item)      
+                next_item = self.treeCtrl_recinto.GetLastChild(item)   
+    def informarAreas(self, madre):
+        item, _ = self.treeCtrl_recinto.GetFirstChild(madre)
+        while item.IsOk():
+            data = self.treeCtrl_recinto.GetItemData(item)
+            print(f'{data.nombre:>20s} = {data.area} ')
+            if self.treeCtrl_recinto.GetChildrenCount(item) > 0:
+                self.informarAreas(item)
+            item = self.treeCtrl_recinto.GetNextSibling(item)
    # ------------------------------------ Acondicionadoras ------------------------------------ #
 
 class Panel_FuenteReceptor ( wx.Panel ):

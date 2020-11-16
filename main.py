@@ -143,7 +143,7 @@ class MainFrame ( wx.Frame ):
          if fileDialog.ShowModal() == wx.ID_CANCEL:
             return     
         path = fileDialog.GetPath()
-        superficies = self.paneles_datos[0].obtener_superficies()
+        superficies = self.paneles_datos[0].obtener_superficies(self.paneles_datos[0].ROOT)
         if len(superficies) > 0:
             for i, superficie in enumerate(superficies):
                 if i == 0:
@@ -171,7 +171,7 @@ class MainFrame ( wx.Frame ):
                     superficie.lineas = lineas
                     superficie.normal_lineas = normal_lineas  
     def onClickArchivoGuardarComo(self,event):
-        event.Skip()
+        self.paneles_datos[0].informarAreas(self.paneles_datos[0].ROOT)
     def onClickArchivoSalir(self,event):
         dial = wx.MessageDialog(None,'¿Desea cerrar el programa?','SALIR',wx.YES_NO)
         resp = dial.ShowModal()
