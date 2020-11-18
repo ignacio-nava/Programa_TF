@@ -7,6 +7,8 @@ sys.path.append(parentDir)
 import wx
 import wx.xrc
 
+from sympy.parsing.sympy_parser import parse_expr
+
 class VenRecintoNuevo ( wx.Dialog ):
     def __init__( self, parent ):
         wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = wx.EmptyString, pos = wx.DefaultPosition, size = wx.Size( 289,209 ), style = wx.DEFAULT_DIALOG_STYLE )
@@ -215,3 +217,101 @@ class VenRecintoNuevo ( wx.Dialog ):
         resp = dial.ShowModal()
         if resp == wx.OK:
             dail.Destroy()
+
+class VenVolumen ( wx.Dialog ):
+    def __init__( self, parent ):
+        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = wx.EmptyString, pos = wx.DefaultPosition, size = wx.Size( 432,209 ), style = wx.DEFAULT_DIALOG_STYLE )
+
+        self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
+
+        sizer_main = wx.BoxSizer( wx.VERTICAL )
+
+        sizer_datos = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"Volumen del Recinto" ), wx.VERTICAL )
+
+
+        sizer_datos.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+        sizer_largo = wx.BoxSizer( wx.HORIZONTAL )
+
+        self.m_staticText7 = wx.StaticText( sizer_datos.GetStaticBox(), wx.ID_ANY, u"Volumen", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText7.Wrap( -1 )
+
+        sizer_largo.Add( self.m_staticText7, 0, wx.ALL, 5 )
+
+        self.textCtrl_volumen = wx.TextCtrl( sizer_datos.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_CENTER|wx.TE_PROCESS_ENTER )
+        sizer_largo.Add( self.textCtrl_volumen, 1, wx.ALL, 5 )
+
+        self.m_staticText8 = wx.StaticText( sizer_datos.GetStaticBox(), wx.ID_ANY, u"[m^3]", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText8.Wrap( -1 )
+
+        sizer_largo.Add( self.m_staticText8, 0, wx.ALL, 5 )
+
+
+        sizer_datos.Add( sizer_largo, 0, wx.EXPAND, 5 )
+
+
+        sizer_datos.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        sizer_main.Add( sizer_datos, 3, wx.EXPAND, 5 )
+
+        sizer_botones = wx.BoxSizer( wx.HORIZONTAL )
+
+
+        sizer_botones.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+        self.boton_cancelar = wx.Button( self, wx.ID_ANY, u"Cancelar", wx.DefaultPosition, wx.DefaultSize, 0 )
+        sizer_botones.Add( self.boton_cancelar, 0, wx.ALL, 5 )
+
+        self.boton_confirmar = wx.Button( self, wx.ID_ANY, u"Confirmar", wx.DefaultPosition, wx.DefaultSize, 0 )
+        sizer_botones.Add( self.boton_confirmar, 0, wx.ALL, 5 )
+
+
+        sizer_botones.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        sizer_main.Add( sizer_botones, 0, wx.EXPAND, 5 )
+
+
+        self.SetSizer( sizer_main )
+        self.Layout()
+
+        self.Centre( wx.BOTH )
+    # Connect Events
+        #self.textCtrl_volumen.Bind( wx.EVT_KILL_FOCUS, self.onKFLargo )
+        self.textCtrl_volumen.Bind( wx.EVT_TEXT_ENTER, self.onEnterVolumen )
+        self.boton_cancelar.Bind( wx.EVT_BUTTON, self.onClickCancelar )
+        self.boton_confirmar.Bind( wx.EVT_BUTTON, self.onClickConfirmar )
+    #  Inicializacion de Variables
+        self.volumen = ''
+    def __del__( self ):
+        pass
+    # Virtual event handlers, overide them in your derived class
+    # def onKFLargo( self, event ):
+    #     event.Skip()
+    def onEnterVolumen( self, event ):
+        cadena = self.textCtrl_volumen.GetValue()
+        valor = self.revisarCadena(cadena)
+        if valor != None:
+            self.volumen = valor
+            self.textCtrl_volumen.SetValue('')
+            self.textCtrl_volumen.SetValue(str(self.volumen))
+        else:
+            self.textCtrl_volumen.SetValue('')
+            self.textCtrl_volumen.SetValue(str(self.volumen))
+    def onClickCancelar( self, event ):
+        self.EndModal(wx.CANCEL)
+    def onClickConfirmar( self, event ):
+        if type(self.volumen) == float:
+            self.EndModal(wx.OK)
+    # -------------------------------------- Herramientas -------------------------------------- #
+    def revisarCadena(self, cadena):
+        try:
+            valor = float(parse_expr(cadena))
+            if valor > 0:
+                return valor
+            else:
+                raise ValueError
+        except (ValueError, TypeError, SyntaxError):
+            return None
+

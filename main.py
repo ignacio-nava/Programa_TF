@@ -10,6 +10,8 @@ import json
 
 import pandas as pd
 from Paneles.paneles import *
+from Calculos.acustica import calcularRT60
+from Ventanas.ventanas import VenVolumen
 
 class MainFrame ( wx.Frame ):
     def __init__( self, parent ):
@@ -178,6 +180,20 @@ class MainFrame ( wx.Frame ):
                     superficie.normal_lineas = normal_lineas 
                     superficie.pared_relleno = relleno 
     def onClickArchivoGuardarComo(self,event):
+        # Se pide el volumen
+        dial = VenVolumen(None)
+        resp = dial.ShowModal()
+        if resp == wx.OK:
+            volumen = dial.volumen
+            dial.Destroy()
+        else:
+            return
+        # Se pide el "path"
+        with wx.FileDialog(self, "Exportar RT60", wildcard="XLSX files (*.xlsx)|*.xlsx",
+                       style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
+         if fileDialog.ShowModal() == wx.ID_CANCEL:
+            return
+        path = fileDialog.GetPath()
         INFO = self.paneles_datos[0].informarAreas(self.paneles_datos[0].ROOT)
         df = pd.DataFrame.from_dict(INFO.__dict__)
         df = df.rename(columns={'Area': 'Área', 'Hz125': '125 Hz', 'Hz250': '250 Hz', 'Hz500': '500 Hz',
@@ -195,9 +211,10 @@ class MainFrame ( wx.Frame ):
                     suma += df['Área'][i] * df[key][i]
                 suma /= sup_total
                 new[key] = suma
-        df_new = pd.DataFrame(new, index=[len(df.index.to_list())+1])
-        df = df.append(df_new)
-        path = "/Users/ignacionava/Desktop/test_02.xlsx"
+        df_prom = pd.DataFrame(new, index=[len(df.index.to_list())+1])
+        df = df.append(df_prom)
+        df_RT60 = pd.DataFrame(calcularRT60(new, volumen), index=[len(df.index.to_list())+1])
+        df = df.append(df_RT60)
         with pd.ExcelWriter(path) as writer:
             df.to_excel(writer, index=False)
     def onClickArchivoSalir(self,event):
@@ -208,6 +225,7 @@ class MainFrame ( wx.Frame ):
             self.Close()
         else: 
             dial.Destroy()
+    # -------------------------------------- Herramientas -------------------------------------- #
 
 if __name__=='__main__':
     app = wx.App()
