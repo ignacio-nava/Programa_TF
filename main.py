@@ -8,6 +8,7 @@ import wx.aui
 
 import json 
 
+import pandas as pd
 from Paneles.paneles import *
 
 class MainFrame ( wx.Frame ):
@@ -153,11 +154,14 @@ class MainFrame ( wx.Frame ):
                     datos['lineas'] = []
                     normal_lineas = datos['normal_lineas']
                     datos['normal_lineas'] = []
+                    relleno = datos['pared_relleno']
+                    datos['pared_relleno'] = []
                     data = json.dumps(datos)
                     archivo.write(data + "\n")
                     archivo.close()
                     superficie.lineas = lineas
                     superficie.normal_lineas = normal_lineas
+                    superficie.pared_relleno = relleno
                 else:
                     archivo = open(path, 'a', encoding='utf-8')
                     datos = superficie.__dict__
@@ -165,13 +169,37 @@ class MainFrame ( wx.Frame ):
                     datos['lineas'] = []
                     normal_lineas = datos['normal_lineas']
                     datos['normal_lineas'] = []
+                    relleno = datos['pared_relleno']
+                    datos['pared_relleno'] = []
                     data = json.dumps(datos)
                     archivo.write(data + "\n")
                     archivo.close()    
                     superficie.lineas = lineas
-                    superficie.normal_lineas = normal_lineas  
+                    superficie.normal_lineas = normal_lineas 
+                    superficie.pared_relleno = relleno 
     def onClickArchivoGuardarComo(self,event):
-        self.paneles_datos[0].informarAreas(self.paneles_datos[0].ROOT)
+        INFO = self.paneles_datos[0].informarAreas(self.paneles_datos[0].ROOT)
+        df = pd.DataFrame.from_dict(INFO.__dict__)
+        df = df.rename(columns={'Area': 'Área', 'Hz125': '125 Hz', 'Hz250': '250 Hz', 'Hz500': '500 Hz',
+                               'Hz1000': '1000 Hz', 'Hz2000': '2000 Hz', 'Hz4000': '4000 Hz'})
+        # Cálculos sup_total y alpha promedio
+        new = {}
+        [new.update({key: 0}) for key in df.columns[2:].to_list()]
+        for key in new.keys():
+            if key == 'Área':
+                sup_total = df[key].sum()
+                new[key] = sup_total
+            else:
+                suma = 0
+                for i in df[key].index.to_list():
+                    suma += df['Área'][i] * df[key][i]
+                suma /= sup_total
+                new[key] = suma
+        df_new = pd.DataFrame(new, index=[len(df.index.to_list())+1])
+        df = df.append(df_new)
+        path = "/Users/ignacionava/Desktop/test_02.xlsx"
+        with pd.ExcelWriter(path) as writer:
+            df.to_excel(writer, index=False)
     def onClickArchivoSalir(self,event):
         dial = wx.MessageDialog(None,'¿Desea cerrar el programa?','SALIR',wx.YES_NO)
         resp = dial.ShowModal()

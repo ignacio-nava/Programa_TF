@@ -14,7 +14,7 @@ class Superficie:
         self.indice = indice
         #self.lineasChildren = []
         self.lineas = []
-        self.color = 'black'
+        self.color = (0, 0, 0, 255)
         self.grafica = grafica
         self.vertices = []
         self.normal = []
@@ -35,6 +35,9 @@ class Superficie:
         self.verts_list = self.getVertices()
         self.normal_lineas = []
         self.area = None
+        self.color_area = None
+        self.pared_relleno = None
+        self.alpha_relleno = 0
         for key, value in datos.items():
             setattr(self, key, value)
     def setVertices(self,key,arg):
@@ -56,7 +59,7 @@ class Superficie:
                 self.normal = None
         else:
             self.normal = None
-    def getVertices(self):
+    def getVertices(self, orden_inverso=False):
         vertices = []
         vers = [self.vertices['vertice_1'],self.vertices['vertice_2'],self.vertices['vertice_3'],self.vertices['vertice_4']]
         for ver in vers:
@@ -69,6 +72,13 @@ class Superficie:
             else:
                 vertices.append('')
         self.verts_list = vertices
+        if orden_inverso:
+            x, y, z = [], [], []
+            for vertice in vertices:
+                x.append(vertice[0])
+                y.append(vertice[1])
+                z.append(vertice[2])
+            vertices = [list(zip(x, y, z))]
         return vertices
     def comprobarCondicion(self,condicion):
         '''condicion (int);
@@ -98,3 +108,14 @@ class Superficie:
         n2 = crearVectorNormal(self.verts_list[0],self.verts_list[2],self.verts_list[3],unitario=False)
         area = getMagnitudVector(n1)/2 + getMagnitudVector(n2)/2
         self.area = area
+    def getColorGrafica(self, relleno=False):
+        if not relleno:
+            if type(self.color) == str:
+                self.color = (0,0,0,255)
+            color = [self.color[i]/256 for i in range(len(self.color))]
+        else:
+            if type(self.color_area) == str or self.color_area == None:
+                self.color_area = (255, 255, 255, 255)
+            color = [self.color_area[i]/256 for i in range(len(self.color_area))]
+        return color
+        

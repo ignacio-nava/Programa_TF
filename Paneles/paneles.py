@@ -6,6 +6,7 @@ sys.path.append(parentDir)
 
 from Calculos.algebra import sumarVectores, multiplicarVectorEscalar
 from Calculos.grafica import obtenerLimites
+from Utilidades.utiles import DataParaRT60
 
 import numpy as np
 import pandas as pd
@@ -23,12 +24,13 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from matplotlib.artist import Artist
 from mpl_toolkits.mplot3d.axes3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
 from matplotlib.figure import Figure
 
 size_boton = (24,24)
-ancho_linea = 1
+ancho_linea = 0.4
 
 class PanelRecinto ( wx.Panel ):
     def __init__( self, parent, id = wx.ID_ANY, pos = wx.DefaultPosition, size = wx.Size( 292,631 ), style = wx.TAB_TRAVERSAL, name = wx.EmptyString ):
@@ -74,24 +76,30 @@ class PanelRecinto ( wx.Panel ):
         sizer_D_down.Add( self.pm_superficie, 1, wx.ALL|wx.EXPAND, 5 )
     
         page = self.pm_superficie.AddPage("Superficie")
-        page.Append(pg.PropertyCategory('Vertices (x,y,z)','vertices'))
-        page.Append(pg.StringProperty('Vertice 1','vertice_1'))
-        page.Append(pg.StringProperty('Vertice 2','vertice_2'))
-        page.Append(pg.StringProperty('Vertice 3','vertice_3'))
-        page.Append(pg.StringProperty('Vertice 4','vertice_4'))
-        page.Append(pg.PropertyCategory('Vector Normal','normal'))
-        dire_normal = page.Append(pg.BoolProperty('Dirección','direccion',False))
-        dire_normal.SetAttribute(pg.PG_BOOL_USE_CHECKBOX,True)
-        #page.Append(pg.ColourProperty('Color','color_normal'))
-        page.Append(pg.PropertyCategory('Material Superficie','materiales'))
-        page.Append(pg.StringProperty('Nombre','m_nombre'))
-        page.Append(pg.StringProperty('125 Hz','m_125'))
-        page.Append(pg.StringProperty('250 Hz','m_250'))
-        page.Append(pg.StringProperty('500 Hz','m_500'))
-        page.Append(pg.StringProperty('1000 Hz','m_1000'))
-        page.Append(pg.StringProperty('2000 Hz','m_2000'))
-        page.Append(pg.StringProperty('4000 Hz','m_4000'))
-        page.Append(pg.StringProperty('NRC','m_nrc'))
+        page.Append(pg.PropertyCategory('Vertices (x,y,z)', 'vertices'))
+        page.Append(pg.StringProperty('Vertice 1', 'vertice_1'))
+        page.Append(pg.StringProperty('Vertice 2', 'vertice_2'))
+        page.Append(pg.StringProperty('Vertice 3', 'vertice_3'))
+        page.Append(pg.StringProperty('Vertice 4', 'vertice_4'))
+        page.Append(pg.PropertyCategory('Vector Normal', 'normal'))
+        dire_normal = page.Append(pg.BoolProperty('Dirección', 'direccion', False))
+        dire_normal.SetAttribute(pg.PG_BOOL_USE_CHECKBOX, True)
+        page.Append(pg.PropertyCategory('Superficie', 'area_op'))
+        page.Append(pg.StringProperty('Área [m2]', 'area_sup'))
+        page.Append(pg.ColourProperty('Color Líneas', 'color_lineas'))
+        visible_linea = page.Append(pg.BoolProperty('Línea Visible', 'mostrar_linea', True))
+        visible_linea.SetAttribute(pg.PG_BOOL_USE_CHECKBOX, True)
+        page.Append(pg.ColourProperty('Color Área', 'color_area'))
+        page.Append(pg.StringProperty('Transparencia Área', 'alpha_area'))
+        page.Append(pg.PropertyCategory('Material Superficie', 'materiales'))
+        page.Append(pg.StringProperty('Nombre', 'm_nombre'))
+        page.Append(pg.StringProperty('125 Hz', 'm_125'))
+        page.Append(pg.StringProperty('250 Hz', 'm_250'))
+        page.Append(pg.StringProperty('500 Hz', 'm_500'))
+        page.Append(pg.StringProperty('1000 Hz', 'm_1000'))
+        page.Append(pg.StringProperty('2000 Hz', 'm_2000'))
+        page.Append(pg.StringProperty('4000 Hz', 'm_4000'))
+        page.Append(pg.StringProperty('NRC', 'm_nrc'))
 
         self.pm_superficie.CollapseAll()
         sizer_DOWN.Add( sizer_D_down, 1, wx.EXPAND, 5 )
@@ -118,7 +126,7 @@ class PanelRecinto ( wx.Panel ):
         pass
    # ---------------------------------------- TreeCtrl ---------------------------------------- #
     def cargarSuperficie(self, datos):
-        item = self.treeCtrl_recinto.GetFirstVisibleItem()
+        item = self.ROOT
         while (datos['orden'] - self.treeCtrl_recinto.GetItemData(item).orden) > 1 and item.IsOk():
             item = self.treeCtrl_recinto.GetLastChild(item)
         self.treeCtrl_recinto.AppendItem(item, datos['nombre'], data=Superficie(**datos))
@@ -268,10 +276,14 @@ class PanelRecinto ( wx.Panel ):
     def soloLectura(self,status):
         self.pm_superficie.SetPropertyReadOnly('vertices',status)
         self.pm_superficie.SetPropertyReadOnly('normal',status)
+        self.pm_superficie.SetPropertyReadOnly('area_op',status)
         self.pm_superficie.SetPropertyReadOnly('materiales',status)
     def escribirValue(self,superficie):
         self.pm_superficie.SetPropertyValues(superficie.vertices)
         self.pm_superficie.SetPropertyValues(superficie.normal_direccion)
+        self.pm_superficie.SetPropertyValue('mostrar_linea', superficie.grafica)
+        self.pm_superficie.SetPropertyValue('area_sup', superficie.area)
+        self.pm_superficie.SetPropertyValue('alpha_area', superficie.alpha_relleno)
         self.pm_superficie.SetPropertyValues(superficie.material_info)
     def onCambioPGM(self,event):
         event.Skip()
@@ -295,6 +307,40 @@ class PanelRecinto ( wx.Panel ):
             status = event.GetPropertyValue()
             superficie.normal_direccion[PGP] = status
             self.padre.direccion_normal(superficie)
+        elif PGP == 'area_sup':
+            valor = event.GetPropertyValue()
+            superficie = self.treeCtrl_recinto.GetItemData(self.superficie_activa)
+            try: 
+                valor = float(parse_expr(valor))
+            except (ValueError, TypeError, SyntaxError):
+                valor = superficie.area
+            superficie.area = valor
+            self.pm_superficie.SetPropertyValue('area_sup', superficie.area)
+        elif PGP.startswith('color'):
+            color = event.GetPropertyValue()
+            superficie = self.treeCtrl_recinto.GetItemData(self.superficie_activa)
+            if PGP.endswith('lineas'):
+                superficie.color = color.Get()
+            else:
+                superficie.color_area = color.Get()
+                self.padre.panel_grafica.cambiar_relleno(superficie)
+        elif PGP == 'mostrar_linea':
+            valor = event.GetPropertyValue()
+            superficie = self.treeCtrl_recinto.GetItemData(self.superficie_activa)
+            superficie.grafica = valor
+            self.padre.panel_grafica.visibilidad_linea(superficie)
+        elif PGP == 'alpha_area':
+            valor = event.GetPropertyValue()
+            superficie = self.treeCtrl_recinto.GetItemData(self.superficie_activa)
+            try:
+                valor = float(valor)
+                if valor >= 0 and valor <= 1:
+                    superficie.alpha_relleno = valor
+                    self.padre.panel_grafica.cambiar_relleno(superficie)
+                else:
+                    raise ValueError
+            except ValueError:
+                self.pm_superficie.SetPropertyValue('alpha_area', superficie.alpha_relleno)
         elif PGP[:2] == 'm_':
             cadena = event.GetPropertyValue()
             if PGP != 'm_nombre':
@@ -326,7 +372,7 @@ class PanelRecinto ( wx.Panel ):
                 valor = float(parse_expr(prueba[i]))
                 final.append(valor)
             return final
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, SyntaxError):
             return None
     def comprobar_rango(self,cadena,a,b):
         '''Comprueba que una cadena sea un valor que se encuentre entre dos valores [a,b]. 
@@ -378,13 +424,32 @@ class PanelRecinto ( wx.Panel ):
                 self.treeCtrl_recinto.Delete(next_item)
                 next_item = self.treeCtrl_recinto.GetLastChild(item)   
     def informarAreas(self, madre):
+        INFO = DataParaRT60()
         item, _ = self.treeCtrl_recinto.GetFirstChild(madre)
         while item.IsOk():
             data = self.treeCtrl_recinto.GetItemData(item)
-            print(f'{data.nombre:>20s} = {data.area} ')
+            if data.area != None:
+                if data.area > 0:
+                    INFO.Pared.append(data.nombre)
+                    INFO.Material.append(data.material_info['m_nombre'])
+                    INFO.Area.append(data.area)
+                    INFO.Hz125.append(data.material_info['m_125'])
+                    INFO.Hz250.append(data.material_info['m_250'])
+                    INFO.Hz500.append(data.material_info['m_500'])
+                    INFO.Hz1000.append(data.material_info['m_1000'])
+                    INFO.Hz2000.append(data.material_info['m_2000'])
+                    INFO.Hz4000.append(data.material_info['m_4000'])       
             if self.treeCtrl_recinto.GetChildrenCount(item) > 0:
-                self.informarAreas(item)
+                info = self.informarAreas(item)
+                INFO.agregarHijas(**info.__dict__)
             item = self.treeCtrl_recinto.GetNextSibling(item)
+        return INFO
+    def getHexCode(self, rgba):
+        cs = [hex(rgba[i]).split('x')[1] for i in range(3)]
+        hexcode = '#'
+        for c in cs:
+            hexcode += c
+        return hexcode
    # ------------------------------------ Acondicionadoras ------------------------------------ #
 
 class Panel_FuenteReceptor ( wx.Panel ):
@@ -437,6 +502,7 @@ class PanelGraficaRecinto ( wx.Panel ):
         self.SetSizer( sizer_main )
         self.Layout()
  #  Inicializacion de Variables
+        self.padre = parent.GetParent()
         self.LINEAS = []
  #  Inicializacion de Funciones
  #  FUNCIONES
@@ -468,17 +534,20 @@ class PanelGraficaRecinto ( wx.Panel ):
         self.canvas.draw()
     def crear_lineas(self,superficie):
         vertices = superficie.getVertices()
-        color = superficie.color
+        color = superficie.getColorGrafica()
         if superficie.comprobarCondicion(0): # si se ingresaron los 4 vertices
-            superficie.getArea() # se calcula el area de la superficie 
+            if superficie.area == None:
+                superficie.getArea() # se calcula el area de la superficie
+            self.padre.paneles_datos[0].pm_superficie.SetPropertyValue('area_sup', superficie.area) 
             # LINEAS SUPERFICIE
             for i in range(-1,len(vertices)-1):
                 linea = self.ax.plot([vertices[i][0],vertices[i+1][0]],
                                      [vertices[i][1],vertices[i+1][1]],
                                      [vertices[i][2],vertices[i+1][2]],
-                                     linewidth=ancho_linea,color=color)
+                                     linewidth=ancho_linea,color=color,zorder=1, visible=superficie.grafica)
                 superficie.lineas.append(linea)
                 #superficie.padre.lineasChildren.append(linea)     # buscar objeto padre
+            self.crear_relleno(superficie)
             # LINEAS NORMAL
             superficie.setNormal() # se obtiene el vector normal de acuerdo a los 4 vertices
             if superficie.normal != None:
@@ -497,14 +566,28 @@ class PanelGraficaRecinto ( wx.Panel ):
             self.canvas.draw()
         else:
             return None
+    def crear_relleno(self, superficie):
+        vertices = superficie.getVertices(orden_inverso=True)
+        relleno = Poly3DCollection(vertices)
+        relleno.set_facecolor(superficie.getColorGrafica(relleno=True))
+        relleno.set_alpha(superficie.alpha_relleno)
+        superficie.pared_relleno = relleno
+        self.ax.add_collection(relleno)
+    def cambiar_relleno(self, superfice):
+        self.ax.collections.remove(superfice.pared_relleno)
+        superfice.pared_relleno.set_facecolor(superfice.getColorGrafica(relleno=True))
+        superfice.pared_relleno.set_verts(superfice.getVertices(orden_inverso=True))
+        superfice.pared_relleno.set_alpha(superfice.alpha_relleno)
+        self.ax.add_collection(superfice.pared_relleno)
+        self.canvas.draw()
     def cambiar_color(self,old,new):
         if old != None:
-            old.color = 'black'
+            #old.color = old.color_lineas
             if len(old.lineas) == 4:
                 for i in range(4):
-                    plt.setp(old.lineas[i],color='black',zorder=0)
+                    plt.setp(old.lineas[i],color=old.getColorGrafica(),zorder=0)
                     plt.setp(old.normal_lineas[i],visible=False)
-        new.color = 'blue'
+        #new.color = 'blue'
         if len(new.lineas) == 4:
             for i in range(4):
                 plt.setp(new.lineas[i],color='blue',zorder=10)
@@ -513,6 +596,7 @@ class PanelGraficaRecinto ( wx.Panel ):
     def cambiar_linea(self,superficie,indice):
         superficie.verts_list = superficie.getVertices()
         superficie.getArea()
+        self.padre.paneles_datos[0].pm_superficie.SetPropertyValue('area_sup', superficie.area)
         if indice == 0:
             ver_a = ((superficie.vertices['vertice_4']).replace(' ','')).split(',')
             ver_b = ((superficie.vertices['vertice_1']).replace(' ','')).split(',')
@@ -548,6 +632,7 @@ class PanelGraficaRecinto ( wx.Panel ):
                                [ver_b[2],ver_c[2]])
         self.canvas.draw()
         self.cambiar_normales(superficie)
+        self.cambiar_relleno(superficie)
     def cambiar_normales(self,superficie):
         # Se remueven las flechas del ax
         [self.ax.collections.remove(superficie.normal_lineas[i]) for i in range(len(superficie.normal_lineas))]
@@ -568,6 +653,7 @@ class PanelGraficaRecinto ( wx.Panel ):
         if todas:
             while len(self.ax.lines) > 0:
                 self.ax.lines[0].remove()
+            self.ax.collections.clear()
             #superficie.lineasChildren = []
         else:
             # for linea in superficie.lineasChildren:
@@ -579,10 +665,16 @@ class PanelGraficaRecinto ( wx.Panel ):
                 i = self.ax.lines.index(linea[0])
                 self.ax.lines[i].remove()
                 self.ax.collections.remove(normal)
+            if superficie.pared_relleno in self.ax.collections:
+                self.ax.collections.remove(superficie.pared_relleno)
                 # j = self.ax.collections.index(normal[0])
                 # self.ax.lines[j].remove()
                 # superficie.padre.lineasChildren.remove(linea)
                 # superficie.padre.lineasChildren.remove(normal)
+        self.canvas.draw()
+    def visibilidad_linea(self, superficie):
+        for linea in superficie.lineas:
+            plt.setp(linea, visible=superficie.grafica)
         self.canvas.draw()
 
 class PanelMateriales ( wx.Panel ):
