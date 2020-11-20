@@ -156,6 +156,8 @@ class PanelRecinto ( wx.Panel ):
         self.padre.cambiar_color(old_superficie,superficie)
     def restar_superficie(self):
         item = self.treeCtrl_recinto.GetSelection()
+        if item == self.ROOT:
+            return
         superficie = self.treeCtrl_recinto.GetItemData(item)
         self.padre.eliminar_lineas(superficie)
         self.restarHijas(item)

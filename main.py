@@ -181,13 +181,13 @@ class MainFrame ( wx.Frame ):
                     superficie.pared_relleno = relleno 
     def onClickArchivoGuardarComo(self,event):
         # Se pide el volumen
-        dial = VenVolumen(None)
-        resp = dial.ShowModal()
-        if resp == wx.OK:
-            volumen = dial.volumen
-            dial.Destroy()
-        else:
-            return
+        # dial = VenVolumen(None)
+        # resp = dial.ShowModal()
+        # if resp == wx.OK:
+        #     volumen = dial.volumen
+        #     dial.Destroy()
+        # else:
+        #     return
         # Se pide el "path"
         with wx.FileDialog(self, "Exportar RT60", wildcard="XLSX files (*.xlsx)|*.xlsx",
                        style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
@@ -213,8 +213,8 @@ class MainFrame ( wx.Frame ):
                 new[key] = suma
         df_prom = pd.DataFrame(new, index=[len(df.index.to_list())+1])
         df = df.append(df_prom)
-        df_RT60 = pd.DataFrame(calcularRT60(new, volumen), index=[len(df.index.to_list())+1])
-        df = df.append(df_RT60)
+        #df_RT60 = pd.DataFrame(calcularRT60(new, volumen), index=[len(df.index.to_list())+1])
+        #df = df.append(df_RT60)
         with pd.ExcelWriter(path) as writer:
             df.to_excel(writer, index=False)
     def onClickArchivoSalir(self,event):
